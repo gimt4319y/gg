@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>writeyourself</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
+<style>
+:root {
+  --bg-base: #1A1A1A;
+  --bg-surface: #222222;
+  --bg-elevated: #2A2A2A;
+  --text-primary: #E8E8E8;
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --border: #333333;
+  --deleted: #C95F5F;
+  --added: #7FB069;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea { font-family: inherit; }
+button { cursor: pointer; }
+::selection { background: var(--text-primary); color: var(--bg-base); }
+.hidden { display: none !important; }
+
+/* Onboarding */
+.onboarding {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 2rem;
+}
+.brand { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 8px; }
+.tagline { color: var(--text-secondary); font-size: 14px; margin-bottom: 72px; }
+.onboard-label { font-size: 14px; color: var(--text-secondary); margin-bottom: 18px; }
+.onboard-input {
+  background: transparent; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text-primary); font-size: 18px; padding: 8px 4px;
+  width: 320px; max-width: 90vw; text-align: center; outline: none;
+  transition: border-color 0.15s;
+}
+.onboard-input:focus { border-bottom-color: var(--text-primary); }
+.onboard-hint { color: var(--text-tertiary); font-size: 12px; margin-top: 14px; }
+.btn-primary {
+  margin-top: 40px;
+  background: var(--text-primary); color: var(--bg-base);
+  border: none; padding: 10px 24px; border-radius: 6px;
+  font-size: 14px; font-weight: 500;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.25; cursor: not-allowed; }
+
+/* App */
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 24px;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--bg-elevated);
+  flex-wrap: wrap;
+}
+.doc-title {
+  background: transparent; border: none; outline: none;
+  color: var(--text-primary); font-size: 14px; font-weight: 500;
+  width: 200px;
+}
+.doc-title::placeholder { color: var(--text-tertiary); }
+.reader-badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--border);
+  font-size: 12px;
+}
+.reader-dot { width: 6px; height: 6px; border-radius: 50%; background: #6FA8DC; }
+.reader-label { color: var(--text-secondary); }
+.reader-name { color: var(--text-primary); font-weight: 500; cursor: pointer; }
+.reader-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.spacer { flex: 1; }
+.mode-tabs { display: flex; gap: 2px; }
+.tab {
+  background: transparent; border: 0.5px solid transparent;
+  color: var(--text-secondary); font-size: 12px;
+  padding: 6px 12px; border-radius: 6px;
+  transition: all 0.15s;
+}
+.tab.active { color: var(--text-primary); background: var(--bg-surface); border-color: var(--border); }
+.tab:hover:not(.active) { color: var(--text-primary); }
+
+.btn {
+  background: transparent; border: 0.5px solid var(--border);
+  color: var(--text-primary); font-size: 12px;
+  padding: 6px 14px; border-radius: 6px;
+  transition: background 0.15s;
+}
+.btn:hover { background: var(--bg-surface); }
+.btn-save {
+  background: var(--text-primary); color: var(--bg-base);
+  border-color: var(--text-primary); font-weight: 500;
+}
+.btn-save:hover { background: var(--text-primary); opacity: 0.85; }
+.btn-save:disabled { opacity: 0.25; cursor: not-allowed; background: var(--text-primary); }
+.btn-icon { padding: 6px 10px; }
+
+/* Main */
+.main {
+  flex: 1; display: flex; justify-content: center;
+  padding: 56px 24px 24px;
+}
+.editor-wrap { width: 100%; max-width: 720px; }
+.writer {
+  width: 100%; min-height: 60vh;
+  background: transparent; border: none; outline: none;
+  color: var(--text-primary); font-size: 17px; line-height: 1.85;
+  resize: none;
+}
+.writer::placeholder { color: var(--text-tertiary); }
+.reader-view {
+  font-size: 17px; line-height: 1.85;
+  white-space: pre-wrap; word-wrap: break-word;
+  min-height: 60vh;
+}
+.read-hint {
+  margin-top: 56px; padding-top: 20px;
+  border-top: 0.5px solid var(--border);
+  text-align: center;
+  color: var(--text-tertiary); font-size: 12px;
+  line-height: 1.8;
+}
+
+/* History */
+.history { width: 100%; max-width: 720px; }
+.history-empty {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 80px 24px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.diff-block {
+  margin-bottom: 40px;
+  padding-bottom: 32px;
+  border-bottom: 0.5px solid var(--border);
+}
+.diff-block:last-child { border-bottom: none; }
+.diff-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.diff-label {
+  font-size: 11px; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.btn-revert {
+  background: transparent; border: 0.5px solid var(--border);
+  color: var(--text-secondary); font-size: 11px;
+  padding: 4px 10px; border-radius: 4px;
+  transition: all 0.15s;
+}
+.btn-revert:hover { color: var(--text-primary); background: var(--bg-surface); }
+.diff-stats {
+  font-size: 12px; color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.diff-stats .removed { color: var(--deleted); }
+.diff-stats .added { color: var(--added); }
+.diff-content {
+  font-size: 16px; line-height: 1.85;
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.diff-content del {
+  color: var(--deleted);
+  text-decoration: line-through;
+  text-decoration-color: var(--deleted);
+  text-decoration-thickness: 1px;
+}
+.diff-content ins {
+  text-decoration: none;
+  background: rgba(127, 176, 105, 0.13);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* Modal */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--bg-surface); padding: 28px;
+  border-radius: 8px; border: 0.5px solid var(--border);
+  min-width: 320px; max-width: 90vw;
+}
+.modal-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+.modal-input {
+  background: transparent; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text-primary); font-size: 16px; padding: 8px 4px;
+  width: 100%; outline: none; margin-bottom: 20px;
+}
+.modal-input:focus { border-bottom-color: var(--text-primary); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.footer-quote {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-style: italic;
+  padding: 24px;
+}
+
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-elevated); border: 0.5px solid var(--border);
+  color: var(--text-primary); font-size: 13px;
+  padding: 10px 20px; border-radius: 6px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Onboarding -->
+<div id="onboarding" class="onboarding">
+  <div class="brand">writeyourself</div>
+  <div class="tagline">버리며 다시 쓰는 글쓰기 도구</div>
+  <div class="onboard-label">이 글을 읽을 독자는 누구인가요?</div>
+  <input id="reader-input" class="onboard-input" placeholder="예: 팀장님, 고객사, 나 자신" />
+  <div class="onboard-hint">글 쓰는 내내 화면에 보일 거예요.</div>
+  <button id="start-btn" class="btn-primary" disabled>시작하기 →</button>
+</div>
+
+<!-- App -->
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <input id="doc-title" class="doc-title" placeholder="제목 없음" />
+    <div class="reader-badge">
+      <div class="reader-dot"></div>
+      <span class="reader-label">독자</span>
+      <span id="reader-name" class="reader-name" title="클릭하여 수정"></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="mode-tabs">
+      <button class="tab active" data-mode="write">쓰기</button>
+      <button class="tab" data-mode="read">읽기</button>
+      <button class="tab" data-mode="history">히스토리<span id="v-count"></span></button>
+    </div>
+    <button id="save-version-btn" class="btn btn-save">다음 버전으로 저장</button>
+    <button id="reset-btn" class="btn" title="모두 지우고 처음부터">처음부터</button>
+  </header>
+
+  <div class="main">
+    <div id="write-pane" class="editor-wrap">
+      <textarea id="writer" class="writer" placeholder="이 독자에게 하고 싶은 말을 일단 다 적어보세요. 다듬는 건 다음 단계입니다."></textarea>
+    </div>
+
+    <div id="read-pane" class="editor-wrap hidden">
+      <div id="reader-view" class="reader-view"></div>
+      <div class="read-hint">
+        독자의 눈으로 한 번 읽어보세요.<br>
+        버릴 부분이 보이면 쓰기 모드로 돌아가 지운 뒤 "다음 버전으로 저장"을 누르세요.
+      </div>
+    </div>
+
+    <div id="history-pane" class="history hidden"></div>
+  </div>
+
+  <div class="footer-quote">"글쓰기에서 가장 중요한 원리는 군더더기를 없애는 것이다." — 윌리엄 진서</div>
+</div>
+
+<!-- Reader edit modal -->
+<div id="reader-modal" class="modal-bg hidden">
+  <div class="modal">
+    <div class="modal-label">독자 변경</div>
+    <input id="reader-edit-input" class="modal-input" />
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">취소</button>
+      <button class="btn btn-save" id="modal-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+const STORAGE_KEY = 'writeyourself_v1';
+let state = { title: '', reader: '', draft: '', versions: [] };
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { state = { ...state, ...JSON.parse(raw) }; return true; }
+  } catch (e) {}
+  return false;
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast.t);
+  showToast.t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// === Init ===
+function init() {
+  const hasData = load();
+  if (hasData && state.reader) showApp();
+  else showOnboarding();
+}
+
+function showOnboarding() {
+  document.getElementById('onboarding').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  setTimeout(() => document.getElementById('reader-input').focus(), 50);
+}
+
+function showApp() {
+  document.getElementById('onboarding').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  renderApp();
+}
+
+function renderApp() {
+  document.getElementById('doc-title').value = state.title || '';
+  document.getElementById('reader-name').textContent = state.reader;
+  document.getElementById('writer').value = state.draft || '';
+  document.getElementById('v-count').textContent = state.versions.length ? ` ${state.versions.length}` : '';
+  updateSaveButton();
+}
+
+function updateSaveButton() {
+  const last = state.versions[state.versions.length - 1];
+  const lastContent = last ? last.content : '';
+  const btn = document.getElementById('save-version-btn');
+  btn.disabled = !state.draft.trim() || state.draft === lastContent;
+}
+
+// === Onboarding ===
+const readerInput = document.getElementById('reader-input');
+const startBtn = document.getElementById('start-btn');
+readerInput.addEventListener('input', (e) => {
+  startBtn.disabled = !e.target.value.trim();
+});
+readerInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.value.trim()) startApp();
+});
+startBtn.addEventListener('click', startApp);
+
+function startApp() {
+  const reader = readerInput.value.trim();
+  if (!reader) return;
+  state.reader = reader;
+  save();
+  showApp();
+  setTimeout(() => document.getElementById('writer').focus(), 50);
+}
+
+// === App events ===
+document.getElementById('doc-title').addEventListener('input', (e) => {
+  state.title = e.target.value;
+  save();
+});
+document.getElementById('writer').addEventListener('input', (e) => {
+  state.draft = e.target.value;
+  save();
+  updateSaveButton();
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => setMode(tab.dataset.mode));
+});
+
+function setMode(mode) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  document.getElementById('write-pane').classList.toggle('hidden', mode !== 'write');
+  document.getElementById('read-pane').classList.toggle('hidden', mode !== 'read');
+  document.getElementById('history-pane').classList.toggle('hidden', mode !== 'history');
+  if (mode === 'read') {
+    document.getElementById('reader-view').textContent = state.draft || '아직 작성된 내용이 없습니다.';
+  }
+  if (mode === 'history') renderHistory();
+}
+
+// === Save version ===
+document.getElementById('save-version-btn').addEventListener('click', () => {
+  if (!state.draft.trim()) return;
+  const last = state.versions[state.versions.length - 1];
+  if (last && last.content === state.draft) return;
+  const n = state.versions.length + 1;
+  state.versions.push({ n, content: state.draft, savedAt: new Date().toISOString() });
+  save();
+  renderApp();
+  showToast(`v${n} 저장됨`);
+});
+
+// === Reader edit ===
+const readerModal = document.getElementById('reader-modal');
+const readerEditInput = document.getElementById('reader-edit-input');
+document.getElementById('reader-name').addEventListener('click', () => {
+  readerEditInput.value = state.reader;
+  readerModal.classList.remove('hidden');
+  setTimeout(() => readerEditInput.focus(), 50);
+});
+document.getElementById('modal-cancel').addEventListener('click', () => readerModal.classList.add('hidden'));
+document.getElementById('modal-save').addEventListener('click', () => {
+  const v = readerEditInput.value.trim();
+  if (v) {
+    state.reader = v;
+    save();
+    document.getElementById('reader-name').textContent = v;
+  }
+  readerModal.classList.add('hidden');
+});
+readerEditInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('modal-save').click();
+  if (e.key === 'Escape') readerModal.classList.add('hidden');
+});
+
+// === Reset ===
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (confirm('모든 글과 버전이 사라집니다. 계속할까요?')) {
+    localStorage.removeItem(STORAGE_KEY);
+    state = { title: '', reader: '', draft: '', versions: [] };
+    readerInput.value = '';
+    startBtn.disabled = true;
+    showOnboarding();
+  }
+});
+
+// === History rendering ===
+function renderHistory() {
+  const pane = document.getElementById('history-pane');
+  if (state.versions.length === 0) {
+    pane.innerHTML = '<div class="history-empty">아직 저장된 버전이 없습니다.<br><br>쓰기 모드에서 글을 쓰고 "다음 버전으로 저장"을 눌러보세요.</div>';
+    return;
+  }
+
+  const dmp = new diff_match_patch();
+  let html = '';
+
+  // v1 - initial draft
+  html += `<div class="diff-block">
+    <div class="diff-header">
+      <div class="diff-label">v1 — 초고</div>
+      <button class="btn-revert" data-revert="0">이 버전으로 되돌리기</button>
+    </div>
+    <div class="diff-content">${escapeHtml(state.versions[0].content)}</div>
+  </div>`;
+
+  // diffs between consecutive versions
+  for (let i = 1; i < state.versions.length; i++) {
+    const prev = state.versions[i-1].content;
+    const curr = state.versions[i].content;
+    const diff = dmp.diff_main(prev, curr);
+    dmp.diff_cleanupSemantic(diff);
+    const { html: diffHtml, removed, added } = renderDiff(diff);
+    html += `<div class="diff-block">
+      <div class="diff-header">
+        <div class="diff-label">v${i} → v${i+1}</div>
+        <button class="btn-revert" data-revert="${i}">이 버전으로 되돌리기</button>
+      </div>
+      <div class="diff-stats">
+        <span class="removed">−${removed}자</span> &nbsp;<span class="added">+${added}자</span>
+      </div>
+      <div class="diff-content">${diffHtml}</div>
+    </div>`;
+  }
+
+  // Current draft vs last saved version (if different)
+  const lastV = state.versions[state.versions.length - 1];
+  if (state.draft && state.draft !== lastV.content) {
+    const diff = dmp.diff_main(lastV.content, state.draft);
+    dmp.diff_cleanupSemantic(diff);
+    const { html: diffHtml, removed, added } = renderDiff(diff);
+    html += `<div class="diff-block">
+      <div class="diff-header">
+        <div class="diff-label">v${lastV.n} → 현재 작성 중 (미저장)</div>
+      </div>
+      <div class="diff-stats">
+        <span class="removed">−${removed}자</span> &nbsp;<span class="added">+${added}자</span>
+      </div>
+      <div class="diff-content">${diffHtml}</div>
+    </div>`;
+  }
+
+  pane.innerHTML = html;
+
+  // Attach revert handlers
+  pane.querySelectorAll('.btn-revert').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.revert, 10);
+      revertToVersion(idx);
+    });
+  });
+}
+
+function revertToVersion(idx) {
+  const v = state.versions[idx];
+  if (!v) return;
+  if (state.draft && state.draft !== v.content) {
+    if (!confirm(`현재 작성 중인 내용은 사라집니다.\nv${v.n}의 내용을 불러올까요?\n\n(이전 버전들은 히스토리에 그대로 남아있습니다.)`)) return;
+  }
+  state.draft = v.content;
+  save();
+  setMode('write');
+  renderApp();
+  document.getElementById('writer').focus();
+  showToast(`v${v.n}로 되돌렸습니다`);
+}
+
+function renderDiff(diff) {
+  let html = '';
+  let removed = 0, added = 0;
+  for (const [op, text] of diff) {
+    const safe = escapeHtml(text);
+    if (op === 0) html += safe;
+    else if (op === -1) { html += `<del>${safe}</del>`; removed += text.length; }
+    else if (op === 1) { html += `<ins>${safe}</ins>`; added += text.length; }
+  }
+  return { html, removed, added };
+}
+
+init();
+</script>
+
+</body>
+</html>
